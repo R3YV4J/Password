@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de fuerza de contraseñas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E12;
+    --panel:#12171E;
+    --panel-alt:#171E27;
+    --border:#232C37;
+    --border-soft:#1C242E;
+    --text:#E7EBEF;
+    --text-dim:#8B96A3;
+    --text-faint:#5C6774;
+    --accent:#C9812A;
+    --accent-soft:rgba(201,129,42,0.14);
+    --danger:#E14B4B;
+    --warn:#E2703A;
+    --caution:#E0A63B;
+    --ok:#8FBF3F;
+    --good:#3FBF7F;
+    --excellent:#2FB6C4;
+    --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:56px 20px 80px;
+    line-height:1.5;
+  }
+
+  .wrap{width:100%;max-width:680px;}
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    margin-bottom:28px;
+  }
+  header h1{
+    font-size:clamp(22px,4vw,28px);
+    font-weight:700;
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    margin:0;
+    color:var(--text-dim);
+    font-size:14.5px;
+    max-width:46ch;
+  }
+
+  .lang-toggle{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .lang-toggle button{
+    background:transparent;
+    border:none;
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:7px 12px;
+    cursor:pointer;
+  }
+  .lang-toggle button.active{
+    background:var(--accent-soft);
+    color:var(--accent);
+  }
+  .lang-toggle button:not(.active):hover{color:var(--text);}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:28px 28px 24px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.03), 0 24px 48px -28px rgba(0,0,0,0.7);
+  }
+
+  .field-label{
+    display:block;
+    font-size:13px;
+    color:var(--text-dim);
+    margin-bottom:8px;
+  }
+
+  .input-row{position:relative;display:flex;gap:10px;}
+  .input-row input[type="password"],
+  .input-row input[type="text"]{
+    flex:1;
+    width:100%;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:16px;
+    letter-spacing:0.02em;
+    padding:14px 46px 14px 16px;
+    border-radius:9px;
+    outline:none;
+  }
+  .input-row input:focus-visible{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .eye-btn{
+    position:absolute;
+    right:8px;
+    top:50%;
+    transform:translateY(-50%);
+    background:transparent;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    padding:6px;
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+  }
+  .eye-btn:hover{color:var(--text-dim);background:var(--border-soft);}
+  .eye-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .usage-hint{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    margin-top:12px;
+    color:var(--text-dim);
+    font-size:12.5px;
+  }
+  .usage-hint svg{
+    flex-shrink:0;
+    margin-top:1px;
+    color:var(--accent);
+  }
+
+  .sample-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:10px;
+  }
+  .ghost-btn{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    font-family:var(--sans);
+    font-size:12.5px;
+    padding:6px 11px;
+    border-radius:7px;
+    cursor:pointer;
+  }
+  .ghost-btn:hover{border-color:var(--text-faint);color:var(--text);}
+  .ghost-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .meter-block{margin:26px 0 22px;}
+  .segments{
+    display:flex;
+    gap:3px;
+    margin-bottom:10px;
+  }
+  .segments div{
+    flex:1;
+    height:9px;
+    border-radius:2px;
+    background:var(--border);
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .segments div{transition:background-color .18s ease;}
+  }
+  .strength-line{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:6px 14px;
+  }
+  .strength-label{font-weight:600;font-size:15px;}
+  .strength-detail{
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--text-faint);
+  }
+
+  .stats{
+    border-top:1px solid var(--border-soft);
+    margin-top:6px;
+  }
+  .stat-row{
+    display:flex;
+    justify-content:space-between;
+    gap:16px;
+    padding:10px 0;
+    border-bottom:1px solid var(--border-soft);
+    font-size:13.5px;
+  }
+  .stat-row .label{color:var(--text-dim);}
+  .stat-row .value{
+    font-family:var(--mono);
+    text-align:right;
+  }
+
+  section.block{margin-top:28px;}
+  section.block h2{
+    font-size:14.5px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  section.block .sub{
+    font-size:12.5px;
+    color:var(--text-faint);
+    margin:0 0 14px;
+  }
+
+  .crack-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    padding:11px 0;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .crack-row:last-child{border-bottom:none;}
+  .crack-name{font-size:13.5px;}
+  .crack-rate{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+  .crack-value{
+    font-family:var(--mono);
+    font-size:14px;
+    font-weight:600;
+    white-space:nowrap;
+    text-align:right;
+  }
+
+  .warnings ul{list-style:none;margin:0;padding:0;}
+  .warnings li{
+    display:flex;
+    gap:9px;
+    align-items:flex-start;
+    font-size:13.5px;
+    color:var(--text-dim);
+    padding:7px 0;
+  }
+  .warnings li svg{flex-shrink:0;margin-top:2px;}
+  .warnings code{
+    font-family:var(--mono);
+    background:var(--panel-alt);
+    border:1px solid var(--border-soft);
+    padding:1px 5px;
+    border-radius:4px;
+    color:var(--text);
+    font-size:12px;
+  }
+
+  .empty-hint{
+    color:var(--text-faint);
+    font-size:13.5px;
+    padding:8px 0 2px;
+  }
+
+  footer.note{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    margin-top:26px;
+    color:var(--text-faint);
+    font-size:12px;
+  }
+  footer.note svg{flex-shrink:0;}
+
+  .actions-row{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:14px;
+  }
+  .copy-btn{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    font-family:var(--sans);
+    font-size:12.5px;
+    padding:7px 13px;
+    border-radius:7px;
+    cursor:pointer;
+  }
+  .copy-btn:hover{border-color:var(--text-faint);color:var(--text);}
+  .copy-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  .copy-btn.copied{color:var(--good);border-color:var(--good);}
+
+  @media (max-width:520px){
+    .panel{padding:22px 18px 20px;}
+    header{flex-direction:column;}
+    .crack-row,.stat-row{flex-direction:column;align-items:flex-start;gap:2px;}
+    .crack-value,.stat-row .value{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1 id="title">Analizador de fuerza de contraseñas</h1>
+      <p id="subtitle">Corre por completo en tu navegador: mide la entropía real de lo que escribes y estima cuánto tardaría en romperse frente a distintos escenarios de ataque.</p>
+    </div>
+    <div class="lang-toggle" role="group" aria-label="Idioma / Language">
+      <button type="button" id="btn-es" class="active">ES</button>
+      <button type="button" id="btn-en">EN</button>
+    </div>
+  </header>
+
+  <div class="panel">
+    <label class="field-label" id="field-label" for="pwd">Contraseña</label>
+    <div class="input-row">
+      <input id="pwd" type="password" autocomplete="new-password" spellcheck="false" placeholder="Escribe algo para empezar…">
+      <button type="button" class="eye-btn" id="eye-btn" aria-label="Mostrar contraseña" aria-pressed="false">
+        <svg id="eye-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      </button>
+    </div>
+
+    <div class="usage-hint" id="usage-hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      </svg>
+      <span id="usage-hint-text">Prueba con una contraseña parecida a la tuya (misma longitud y patrón), no hace falta que escribas la real.</span>
+    </div>
+
+    <div class="sample-row">
+      <button type="button" class="ghost-btn" id="sample-weak">Ejemplo débil</button>
+      <button type="button" class="ghost-btn" id="sample-medium">Ejemplo medio</button>
+      <button type="button" class="ghost-btn" id="sample-strong">Ejemplo fuerte</button>
+      <button type="button" class="ghost-btn" id="sample-clear">Limpiar</button>
+    </div>
+
+    <div class="meter-block" aria-live="polite">
+      <div class="segments" id="segments"></div>
+      <div class="strength-line">
+        <span class="strength-label" id="strength-label">—</span>
+        <span class="strength-detail" id="strength-detail"></span>
+      </div>
+    </div>
+
+    <div id="stats-block">
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <section class="block">
+      <h2 id="crack-heading">Tiempo estimado de crackeo</h2>
+      <p class="sub" id="crack-sub">Órdenes de magnitud según capacidad de cómputo, no una medición exacta.</p>
+      <div id="crack-times"></div>
+    </section>
+
+    <section class="block warnings" id="warnings-block" style="display:none;">
+      <h2 id="warnings-heading">Patrones detectados</h2>
+      <ul id="warnings-list"></ul>
+    </section>
+
+    <div class="actions-row">
+      <button type="button" class="copy-btn" id="copy-btn">Copiar resumen</button>
+    </div>
+
+    <footer class="note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+      <span id="privacy-note">Todo el cálculo ocurre en tu navegador. La contraseña nunca se envía ni se guarda en ningún sitio.</span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- data ---------- */
+
+  var COMMON_PASSWORDS = ["123456","password","123456789","12345678","12345","1234567","1234567890",
+  "qwerty","abc123","111111","123123","1234","iloveyou","1q2w3e4r","000000","qwerty123","zaq12wsx",
+  "dragon","sunshine","princess","letmein","monkey","football","password1","123321","666666",
+  "1qaz2wsx","654321","555555","7777777","123abc","121212","1111111","target123","asdfgh",
+  "password123","987654321","qwertyuiop","mustang","baseball","master","hello","freedom","whatever",
+  "qazwsx","trustno1","hunter","buster","soccer","hockey","killer","george","sexy","andrew",
+  "charlie","superman","dallas","jessica","panties","pepper","1234qwer","zxcvbnm","asdfasdf",
+  "qwerty1","michael","football1","jennifer","amanda","joshua","maggie","tigger","sunshine1",
+  "chelsea","jasmine","hannah","summer","winter","cookie","secret","ginger","batman","superman1",
+  "shadow","michelle","jordan","daniel","robert","matthew","andrea","samantha","internet","service",
+  "canada","yankees","dolphins","dolphin","starwars","startrek","letmein1","access","flower",
+  "hello123","admin","admin123","root","toor","changeme","default","welcome","welcome1","login",
+  "passw0rd","p@ssw0rd","p@ssword","iloveu","loveme","forever","angel","princess1","cheese",
+  "banana","orange","purple","yellow","rainbow","butterfly","chocolate","cupcake","snoopy",
+  "garfield","tweety","pokemon","digimon","naruto","sasuke","goku","zelda","mario","nintendo",
+  "playstation","xbox360","minecraft","fortnite","roblox","password2","password12","q1w2e3r4",
+  "1q2w3e4r5t","11111111","22222222","696969","asd123","asdf1234","test123","testing","temp123",
+  "guest","user","1234561","12341234","1122334455","aaaaaa","abcdef","abcabc","asdfghjkl",
+  "zxcvbn","poiuyt","1qazxsw2",
+  "contrasena","contrasena123","hola1234","hola123","teamo","teamocorazon","miamor","corazon",
+  "futbol","realmadrid","barcelona","valencia","sevilla","atletico","espana","madrid123",
+  "usuario","clave123","bienvenido","bienvenida","principito","chiquitita","elpatron","mifamilia",
+  "familia123","amistad","tequiero","abcd1234","universidad","colegio123","navidad123"];
+
+  var COMMON_ROOTS = ["password","admin","welcome","dragon","monkey","master","shadow","football",
+  "baseball","superman","batman","sunshine","princess","letmein","iloveyou","trustno1","whatever",
+  "freedom","internet","hunter","jordan","michael","jennifer","hannah","amanda","killer","george",
+  "tigger","cookie","secret","ginger","chelsea","summer","winter","cheese","banana","jasmine",
+  "samantha","dolphin","starwars",
+  "contrasena","usuario","bienvenido","bienvenida","familia","amistad","corazon","tequiero",
+  "teamo","miamor","futbol","valencia","madrid","barcelona","sevilla","espana","universidad",
+  "colegio","trabajo","empresa","navidad","verano","invierno","primavera","vacaciones",
+  "cumpleanos","principito","hermano","hermana","abuelo","abuela"];
+
+  var KEYBOARD_PATTERNS = ["qwertyuiop","asdfghjkl","zxcvbnm","qwerty","asdfgh","zxcvbn","1qaz2wsx",
+  "q1w2e3r4","qazwsx","poiuytrewq","lkjhgfdsa","mnbvcxz"];
+
+  var COMMON_SET = new Set(COMMON_PASSWORDS);
+
+  var SCENARIOS = [
+    {id:"onlineLimited", rate:100/3600,
+      nameEs:"Online (con límite de intentos)", nameEn:"Online (rate-limited)",
+      rateEs:"≈100 intentos/hora", rateEn:"≈100 attempts/hour"},
+    {id:"onlineOpen", rate:10,
+      nameEs:"Online (sin límite)", nameEn:"Online (no rate limit)",
+      rateEs:"≈10 intentos/segundo", rateEn:"≈10 attempts/second"},
+    {id:"offlineSlow", rate:1e4,
+      nameEs:"Offline — hash lento (bcrypt/Argon2)", nameEn:"Offline — slow hash (bcrypt/Argon2)",
+      rateEs:"≈10 000 intentos/s (GPU)", rateEn:"≈10,000 attempts/s (GPU)"},
+    {id:"offlineFast", rate:1e10,
+      nameEs:"Offline — hash rápido (MD5/NTLM)", nameEn:"Offline — fast hash (MD5/NTLM)",
+      rateEs:"≈10 000 millones intentos/s (rig GPU)", rateEn:"≈10 billion attempts/s (GPU rig)"}
+  ];
+
+  var LABELS = {
+    es:{
+      title:"Analizador de fuerza de contraseñas",
+      subtitle:"Corre por completo en tu navegador: mide la entropía real de lo que escribes y estima cuánto tardaría en romperse frente a distintos escenarios de ataque.",
+      fieldLabel:"Contraseña",
+      placeholder:"Escribe algo para empezar…",
+      usageHint:"Prueba con una contraseña parecida a la tuya (misma longitud y patrón), no hace falta que escribas la real.",
+      showPwd:"Mostrar contraseña",
+      hidePwd:"Ocultar contraseña",
+      sampleWeak:"Ejemplo débil",
+      sampleMedium:"Ejemplo medio",
+      sampleStrong:"Ejemplo fuerte",
+      sampleClear:"Limpiar",
+      emptyStrength:"Sin datos",
+      emptyDetail:"esperando entrada",
+      length:"Longitud",
+      charLength:function(n){return n===1?"1 carácter":n+" caracteres";},
+      sets:"Conjuntos usados",
+      setsNone:"—",
+      setLower:"minúsculas",
+      setUpper:"mayúsculas",
+      setDigit:"dígitos",
+      setSymbol:"símbolos",
+      setAccented:"letras acentuadas",
+      setOther:"otros caracteres",
+      rawEntropy:"Entropía en bruto",
+      effEntropy:"Entropía ajustada",
+      bits:function(n){return n+" bits";},
+      crackHeading:"Tiempo estimado de crackeo",
+      crackSub:"Órdenes de magnitud según capacidad de cómputo, no una medición exacta. Si la contraseña es una palabra real (en cualquier idioma) o sigue un patrón reconocible, un ataque de diccionario puede romperla mucho más rápido de lo que indican estos números.",
+      warningsHeading:"Patrones detectados",
+      privacyNote:"Todo el cálculo ocurre en tu navegador. La contraseña nunca se envía ni se guarda en ningún sitio.",
+      copyBtn:"Copiar resumen",
+      copyDone:"¡Copiado!",
+      instant:"instantáneo",
+      seconds:function(n){return round1(n)+" segundos";},
+      minutes:function(n){return round1(n)+" minutos";},
+      hours:function(n){return round1(n)+" horas";},
+      days:function(n){return round1(n)+" días";},
+      years:function(n){return round1(n)+" años";},
+      kyears:function(n){return round1(n)+" mil años";},
+      Myears:function(n){return round1(n)+" millones de años";},
+      sciYears:function(m,e){return m+" × 10"+toSup(e)+" años";},
+      strengthNames:["Muy débil","Débil","Aceptable","Fuerte","Muy fuerte","Excelente"],
+      issue:{
+        commonExact:"Es una de las contraseñas más usadas del mundo — se rompe al instante.",
+        commonSubstring:function(m){return 'Contiene una palabra o contraseña muy común ("'+m+'").';},
+        keyboardPattern:function(m){return 'Contiene un patrón de teclado ("'+m+'").';},
+        sequence:function(m){return 'Contiene una secuencia predecible ("'+m+'").';},
+        repeat:function(m){return 'Contiene caracteres repetidos ("'+m+'").';},
+        leetCommon:function(orig){return 'Es una palabra común disfrazada con sustituciones tipo "leet" ("'+orig+'").';},
+        tooShort:"Es muy corta — cada carácter adicional multiplica el tiempo de crackeo.",
+        noVariety:"Usa un único tipo de carácter — combinar mayúsculas, minúsculas, dígitos y símbolos aumenta mucho la entropía."
+      },
+      reportTitle:"Resumen del análisis de contraseña",
+      reportLen:"Longitud",
+      reportSets:"Conjuntos",
+      reportRaw:"Entropía en bruto",
+      reportEff:"Entropía ajustada",
+      reportCategory:"Categoría"
+    },
+    en:{
+      title:"Password strength analyzer",
+      subtitle:"Runs entirely in your browser: measures the real entropy of what you type and estimates how long it would take to crack under different attack scenarios.",
+      fieldLabel:"Password",
+      placeholder:"Type something to begin…",
+      usageHint:"Try a password similar to yours (same length and pattern) — no need to type the real one.",
+      showPwd:"Show password",
+      hidePwd:"Hide password",
+      sampleWeak:"Weak example",
+      sampleMedium:"Medium example",
+      sampleStrong:"Strong example",
+      sampleClear:"Clear",
+      emptyStrength:"No data",
+      emptyDetail:"waiting for input",
+      length:"Length",
+      charLength:function(n){return n===1?"1 character":n+" characters";},
+      sets:"Character sets used",
+      setsNone:"—",
+      setLower:"lowercase",
+      setUpper:"uppercase",
+      setDigit:"digits",
+      setSymbol:"symbols",
+      setAccented:"accented letters",
+      setOther:"other characters",
+      rawEntropy:"Raw entropy",
+      effEntropy:"Adjusted entropy",
+      bits:function(n){return n+" bits";},
+      crackHeading:"Estimated crack time",
+      crackSub:"Order-of-magnitude estimates based on computing power, not an exact measurement. If the password is a real word (in any language) or follows a recognizable pattern, a dictionary attack can break it much faster than these numbers suggest.",
+      warningsHeading:"Patterns detected",
+      privacyNote:"All calculation happens in your browser. The password is never sent or stored anywhere.",
+      copyBtn:"Copy summary",
+      copyDone:"Copied!",
+      instant:"instant",
+      seconds:function(n){return round1(n)+" seconds";},
+      minutes:function(n){return round1(n)+" minutes";},
+      hours:function(n){return round1(n)+" hours";},
+      days:function(n){return round1(n)+" days";},
+      years:function(n){return round1(n)+" years";},
+      kyears:function(n){return round1(n)+" thousand years";},
+      Myears:function(n){return round1(n)+" million years";},
+      sciYears:function(m,e){return m+" × 10"+toSup(e)+" years";},
+      strengthNames:["Very weak","Weak","Reasonable","Strong","Very strong","Excellent"],
+      issue:{
+        commonExact:"This is one of the most common passwords in the world — cracked instantly.",
+        commonSubstring:function(m){return 'Contains a very common word or password ("'+m+'").';},
+        keyboardPattern:function(m){return 'Contains a keyboard pattern ("'+m+'").';},
+        sequence:function(m){return 'Contains a predictable sequence ("'+m+'").';},
+        repeat:function(m){return 'Contains repeated characters ("'+m+'").';},
+        leetCommon:function(orig){return 'A common word disguised with "leet" substitutions ("'+orig+'").';},
+        tooShort:"It's very short — every extra character multiplies crack time.",
+        noVariety:"Uses only one character type — mixing upper/lowercase, digits and symbols adds a lot of entropy."
+      },
+      reportTitle:"Password analysis summary",
+      reportLen:"Length",
+      reportSets:"Sets",
+      reportRaw:"Raw entropy",
+      reportEff:"Adjusted entropy",
+      reportCategory:"Category"
+    }
+  };
+
+  var STRENGTH_COLORS = ["var(--danger)","var(--warn)","var(--caution)","var(--ok)","var(--good)","var(--excellent)"];
+
+  var SAMPLES = {
+    weak:"123456",
+    medium:"Correo2024",
+    strong:"Tr4pecio!Nube#47q"
+  };
+
+  var lang = "es";
+  var showingPwd = false;
+
+  /* ---------- helpers ---------- */
+
+  function round1(n){
+    if(n>=10) return Math.round(n).toLocaleString(lang==="es"?"es-ES":"en-US");
+    return (Math.round(n*10)/10).toLocaleString(lang==="es"?"es-ES":"en-US");
+  }
+
+  var SUP = {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"};
+  function toSup(n){
+    return String(n).split("").map(function(c){return SUP[c]||c;}).join("");
+  }
+
+  function log2(x){return Math.log(x)/Math.LN2;}
+
+  function reverseStr(s){return s.split("").reverse().join("");}
+
+  function foldAccents(s){
+    return s.normalize ? s.normalize("NFD").replace(/[\u0300-\u036f]/g,"") : s;
+  }
+
+  function leetNormalize(s){
+    var map = {"0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","@":"a","$":"s","!":"i"};
+    return s.toLowerCase().split("").map(function(c){return map[c]||c;}).join("");
+  }
+
+  function findSequence(s){
+    var lower = s.toLowerCase();
+    for(var len=6; len>=3; len--){
+      for(var i=0;i+len<=lower.length;i++){
+        var chunk = lower.slice(i,i+len);
+        if(isRun(chunk,1) || isRun(chunk,-1)) return chunk;
+      }
+    }
+    return null;
+  }
+  function isRun(chunk,dir){
+    for(var i=1;i<chunk.length;i++){
+      var a = chunk.charCodeAt(i-1), b = chunk.charCodeAt(i);
+      if(b-a!==dir) return false;
+    }
+    return true;
+  }
+
+  function findRepeat(s){
+    var m = s.match(/(.)\1{2,}/);
+    return m ? m[0] : null;
+  }
+
+  function findKeyboardPattern(s){
+    var lower = s.toLowerCase();
+    var best = null;
+    KEYBOARD_PATTERNS.forEach(function(p){
+      if(p.length<4) return;
+      if(lower.indexOf(p)!==-1 || lower.indexOf(reverseStr(p))!==-1){
+        if(!best || p.length>best.length) best = p;
+      }
+    });
+    return best;
+  }
+
+  function findCommonSubstring(s){
+    var lower = foldAccents(s.toLowerCase());
+    var best = null;
+    COMMON_ROOTS.forEach(function(w){
+      if(w.length>=4 && lower.indexOf(w)!==-1){
+        if(!best || w.length>best.length) best = w;
+      }
+    });
+    return best;
+  }
+
+  function findLeetCommon(s){
+    var norm = foldAccents(leetNormalize(s));
+    var plain = foldAccents(s.toLowerCase());
+    if(norm===plain) return null; // no substitution actually happened
+    var best = null;
+    COMMON_ROOTS.forEach(function(w){
+      if(w.length>=4 && norm.indexOf(w)!==-1){
+        if(!best || w.length>best.length) best = w;
+      }
+    });
+    return best;
+  }
+
+  /* ---------- core analysis ---------- */
+
+  function analyze(pwd){
+    var L = LABELS[lang];
+    var result = {
+      length: pwd.length,
+      sets: [],
+      poolSize: 0,
+      rawEntropy: 0,
+      effEntropy: 0,
+      category: 0,
+      issues: []
+    };
+    if(pwd.length===0) return result;
+
+    var hasLower = /[a-z]/.test(pwd);
+    var hasUpper = /[A-Z]/.test(pwd);
+    var hasDigit = /[0-9]/.test(pwd);
+    var hasSymbol = /[ !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(pwd);
+    // Accented Latin letters (á é í ó ú ñ ü, etc.) are common and fairly predictable
+    // in Spanish/Portuguese/French text — treat them as a small, not exotic, addition.
+    var hasAccented = /[\u00C0-\u00FF\u0100-\u017F]/.test(pwd);
+    // Anything outside ASCII + accented Latin (Cyrillic, CJK, emoji...) is genuinely rare.
+    var hasExotic = /[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F]/.test(pwd);
+
+    var pool = 0;
+    if(hasLower){pool+=26; result.sets.push(L.setLower);}
+    if(hasUpper){pool+=26; result.sets.push(L.setUpper);}
+    if(hasDigit){pool+=10; result.sets.push(L.setDigit);}
+    if(hasSymbol){pool+=33; result.sets.push(L.setSymbol);}
+    if(hasAccented){pool+=15; result.sets.push(L.setAccented);}
+    if(hasExotic){pool+=100; result.sets.push(L.setOther);}
+    if(pool===0) pool = 26;
+
+    result.poolSize = pool;
+    var raw = pwd.length * log2(pool);
+    result.rawEntropy = raw;
+
+    var penalty = 0;
+    var forcedLow = false;
+
+    if(COMMON_SET.has(pwd.toLowerCase()) || COMMON_SET.has(foldAccents(pwd.toLowerCase()))){
+      result.issues.push({code:"commonExact"});
+      forcedLow = true;
+    }
+
+    var commonSub = findCommonSubstring(pwd);
+    if(commonSub && !forcedLow){
+      result.issues.push({code:"commonSubstring", match:commonSub});
+      penalty += 18;
+    }
+
+    var leetMatch = findLeetCommon(pwd);
+    if(leetMatch && !forcedLow){
+      result.issues.push({code:"leetCommon", match:leetMatch});
+      penalty += 16;
+    }
+
+    var kb = findKeyboardPattern(pwd);
+    if(kb){
+      result.issues.push({code:"keyboardPattern", match:kb});
+      penalty += 12;
+    }
+
+    var seq = findSequence(pwd);
+    if(seq){
+      result.issues.push({code:"sequence", match:seq});
+      penalty += 10;
+    }
+
+    var rep = findRepeat(pwd);
+    if(rep){
+      result.issues.push({code:"repeat", match:rep});
+      penalty += 10;
+    }
+
+    if(pwd.length<8){
+      result.issues.push({code:"tooShort"});
+      penalty += 10;
+    }
+
+    if(result.sets.length<=1){
+      result.issues.push({code:"noVariety"});
+      penalty += 10;
+    }
+
+    var eff = forcedLow ? Math.min(raw, 10) : Math.max(0, raw - penalty);
+    result.effEntropy = eff;
+
+    if(eff<20) result.category=0;
+    else if(eff<40) result.category=1;
+    else if(eff<60) result.category=2;
+    else if(eff<80) result.category=3;
+    else if(eff<100) result.category=4;
+    else result.category=5;
+
+    return result;
+  }
+
+  function formatCrackTime(effEntropy, rate){
+    var seconds = Math.pow(2, effEntropy) / rate / 2;
+    var L = LABELS[lang];
+    if(!isFinite(seconds) || seconds<0) seconds = 0;
+
+    if(seconds<1) return {text:L.instant, seconds:seconds};
+    if(seconds<60) return {text:L.seconds(seconds), seconds:seconds};
+    if(seconds<3600) return {text:L.minutes(seconds/60), seconds:seconds};
+    if(seconds<86400) return {text:L.hours(seconds/3600), seconds:seconds};
+    if(seconds<31536000) return {text:L.days(seconds/86400), seconds:seconds};
+
+    var years = seconds/31536000;
+    if(years<1000) return {text:L.years(years), seconds:seconds};
+    if(years<1e6) return {text:L.kyears(years/1e3), seconds:seconds};
+    if(years<1e9) return {text:L.Myears(years/1e6), seconds:seconds};
+
+    var exp = Math.floor(Math.log10(years));
+    var mantissa = (years/Math.pow(10,exp)).toFixed(2);
+    return {text:L.sciYears(mantissa, exp), seconds:seconds};
+  }
+
+  function severityColor(seconds){
+    if(seconds<3600) return "var(--danger)";
+    if(seconds<2592000) return "var(--warn)";
+    if(seconds<315360000) return "var(--caution)";
+    if(seconds<3.15e10) return "var(--ok)";
+    if(seconds<3.15e13) return "var(--good)";
+    return "var(--excellent)";
+  }
+
+  /* ---------- rendering ---------- */
+
+  var els = {
+    title: document.getElementById("title"),
+    subtitle: document.getElementById("subtitle"),
+    fieldLabel: document.getElementById("field-label"),
+    pwd: document.getElementById("pwd"),
+    eyeBtn: document.getElementById("eye-btn"),
+    sampleWeak: document.getElementById("sample-weak"),
+    sampleMedium: document.getElementById("sample-medium"),
+    sampleStrong: document.getElementById("sample-strong"),
+    sampleClear: document.getElementById("sample-clear"),
+    usageHintText: document.getElementById("usage-hint-text"),
+    segments: document.getElementById("segments"),
+    strengthLabel: document.getElementById("strength-label"),
+    strengthDetail: document.getElementById("strength-detail"),
+    stats: document.getElementById("stats"),
+    crackHeading: document.getElementById("crack-heading"),
+    crackSub: document.getElementById("crack-sub"),
+    crackTimes: document.getElementById("crack-times"),
+    warningsBlock: document.getElementById("warnings-block"),
+    warningsHeading: document.getElementById("warnings-heading"),
+    warningsList: document.getElementById("warnings-list"),
+    privacyNote: document.getElementById("privacy-note"),
+    copyBtn: document.getElementById("copy-btn"),
+    btnEs: document.getElementById("btn-es"),
+    btnEn: document.getElementById("btn-en")
+  };
+
+  var SEGMENT_COUNT = 24;
+  for(var i=0;i<SEGMENT_COUNT;i++){
+    var d = document.createElement("div");
+    els.segments.appendChild(d);
+  }
+
+  function warningIcon(){
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--caution)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+
+      '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>'+
+      '<line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+  }
+
+  function issueText(L, issue){
+    var fn = L.issue[issue.code];
+    if(typeof fn === "function") return fn(issue.match);
+    return fn;
+  }
+
+  var lastResult = null;
+
+  function render(){
+    var L = LABELS[lang];
+    var pwd = els.pwd.value;
+    var r = analyze(pwd);
+    lastResult = r;
+
+    document.title = L.title;
+    els.title.textContent = L.title;
+    els.subtitle.textContent = L.subtitle;
+    els.fieldLabel.textContent = L.fieldLabel;
+    els.pwd.placeholder = L.placeholder;
+    els.usageHintText.textContent = L.usageHint;
+    els.sampleWeak.textContent = L.sampleWeak;
+    els.sampleMedium.textContent = L.sampleMedium;
+    els.sampleStrong.textContent = L.sampleStrong;
+    els.sampleClear.textContent = L.sampleClear;
+    els.crackHeading.textContent = L.crackHeading;
+    els.crackSub.textContent = L.crackSub;
+    els.warningsHeading.textContent = L.warningsHeading;
+    els.privacyNote.textContent = L.privacyNote;
+    els.copyBtn.textContent = L.copyBtn;
+    els.eyeBtn.setAttribute("aria-label", showingPwd ? L.hidePwd : L.showPwd);
+
+    // segments
+    var segDivs = els.segments.children;
+    var lit = pwd.length===0 ? 0 : Math.max(1, Math.min(SEGMENT_COUNT, Math.round(r.effEntropy/128*SEGMENT_COUNT)));
+    var color = STRENGTH_COLORS[r.category];
+    for(var i=0;i<segDivs.length;i++){
+      segDivs[i].style.background = i<lit ? color : "var(--border)";
+    }
+
+    // strength label
+    if(pwd.length===0){
+      els.strengthLabel.textContent = L.emptyStrength;
+      els.strengthLabel.style.color = "var(--text-faint)";
+      els.strengthDetail.textContent = L.emptyDetail;
+    } else {
+      els.strengthLabel.textContent = L.strengthNames[r.category];
+      els.strengthLabel.style.color = color;
+      els.strengthDetail.textContent = L.bits(Math.round(r.effEntropy)) + " · " + L.bits(Math.round(r.rawEntropy)) + " " + (lang==="es"?"en bruto":"raw");
+    }
+
+    // stats
+    els.stats.innerHTML = "";
+    if(pwd.length>0){
+      var rows = [
+        [L.length, L.charLength(r.length)],
+        [L.sets, r.sets.length ? r.sets.join(", ") : L.setsNone],
+        [L.rawEntropy, L.bits(Math.round(r.rawEntropy))],
+        [L.effEntropy, L.bits(Math.round(r.effEntropy))]
+      ];
+      rows.forEach(function(row){
+        var div = document.createElement("div");
+        div.className = "stat-row";
+        div.innerHTML = '<span class="label">'+row[0]+'</span><span class="value">'+row[1]+'</span>';
+        els.stats.appendChild(div);
+      });
+    }
+
+    // crack times
+    els.crackTimes.innerHTML = "";
+    if(pwd.length===0){
+      var hint = document.createElement("p");
+      hint.className = "empty-hint";
+      hint.textContent = lang==="es" ? "Escribe una contraseña para ver las estimaciones." : "Type a password to see the estimates.";
+      els.crackTimes.appendChild(hint);
+    } else {
+      SCENARIOS.forEach(function(sc){
+        var ct = formatCrackTime(r.effEntropy, sc.rate);
+        var row = document.createElement("div");
+        row.className = "crack-row";
+        row.innerHTML =
+          '<div><div class="crack-name">'+(lang==="es"?sc.nameEs:sc.nameEn)+'</div>'+
+          '<div class="crack-rate">'+(lang==="es"?sc.rateEs:sc.rateEn)+'</div></div>'+
+          '<div class="crack-value" style="color:'+severityColor(ct.seconds)+'">'+ct.text+'</div>';
+        els.crackTimes.appendChild(row);
+      });
+    }
+
+    // warnings
+    if(pwd.length>0 && r.issues.length>0){
+      els.warningsBlock.style.display = "";
+      els.warningsList.innerHTML = "";
+      r.issues.forEach(function(issue){
+        var li = document.createElement("li");
+        var text = issueText(L, issue);
+        if(issue.match){
+          text = text.replace('"'+issue.match+'"', '<code>'+issue.match+'</code>');
+        }
+        li.innerHTML = warningIcon() + '<span>'+text+'</span>';
+        els.warningsList.appendChild(li);
+      });
+    } else {
+      els.warningsBlock.style.display = "none";
+    }
+  }
+
+  function buildReport(){
+    var L = LABELS[lang];
+    var r = lastResult;
+    if(!r || r.length===0) return "";
+    var lines = [];
+    lines.push(L.reportTitle);
+    lines.push(L.reportLen+": "+L.charLength(r.length));
+    lines.push(L.reportSets+": "+(r.sets.length?r.sets.join(", "):L.setsNone));
+    lines.push(L.reportRaw+": "+L.bits(Math.round(r.rawEntropy)));
+    lines.push(L.reportEff+": "+L.bits(Math.round(r.effEntropy)));
+    lines.push(L.reportCategory+": "+L.strengthNames[r.category]);
+    SCENARIOS.forEach(function(sc){
+      var ct = formatCrackTime(r.effEntropy, sc.rate);
+      lines.push((lang==="es"?sc.nameEs:sc.nameEn)+": "+ct.text);
+    });
+    return lines.join("\n");
+  }
+
+  /* ---------- events ---------- */
+
+  els.pwd.addEventListener("input", render);
+
+  els.eyeBtn.addEventListener("click", function(){
+    showingPwd = !showingPwd;
+    els.pwd.type = showingPwd ? "text" : "password";
+    render();
+    els.pwd.focus();
+  });
+
+  els.sampleWeak.addEventListener("click", function(){els.pwd.value = SAMPLES.weak; render();});
+  els.sampleMedium.addEventListener("click", function(){els.pwd.value = SAMPLES.medium; render();});
+  els.sampleStrong.addEventListener("click", function(){els.pwd.value = SAMPLES.strong; render();});
+  els.sampleClear.addEventListener("click", function(){els.pwd.value = ""; render(); els.pwd.focus();});
+
+  els.btnEs.addEventListener("click", function(){setLang("es");});
+  els.btnEn.addEventListener("click", function(){setLang("en");});
+
+  function setLang(newLang){
+    lang = newLang;
+    els.btnEs.classList.toggle("active", lang==="es");
+    els.btnEn.classList.toggle("active", lang==="en");
+    render();
+  }
+
+  els.copyBtn.addEventListener("click", function(){
+    var report = buildReport();
+    if(!report) return;
+    var done = LABELS[lang].copyDone;
+    var original = LABELS[lang].copyBtn;
+    function confirm(){
+      els.copyBtn.textContent = done;
+      els.copyBtn.classList.add("copied");
+      setTimeout(function(){
+        els.copyBtn.textContent = LABELS[lang].copyBtn;
+        els.copyBtn.classList.remove("copied");
+      }, 1600);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(report).then(confirm).catch(confirm);
+    } else {
+      confirm();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
